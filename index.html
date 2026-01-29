@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>自由時間カウンター（人生）</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#111827">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111827; --muted:#9ca3af; --text:#e5e7eb;
+      --line: rgba(255,255,255,.08);
+      --shadow: 0 14px 35px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Noto Sans JP",sans-serif;
+      background:
+        radial-gradient(1200px 700px at 15% 10%, rgba(14,165,233,.16), transparent 60%),
+        radial-gradient(900px 600px at 85% 30%, rgba(34,197,94,.10), transparent 55%),
+        var(--bg);
+      color:var(--text);
+      padding: 16px 14px 90px;
+    }
+    .wrap{max-width:900px; margin:0 auto;}
+    h1{margin:4px 0 6px; font-size:18px}
+    .sub{margin:0 0 14px; color:var(--muted); font-size:12px; line-height:1.6}
+
+    .card{
+      background: rgba(17,24,39,.84);
+      border:1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      padding: 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    .grid2{display:grid; grid-template-columns: 1fr; gap:10px}
+    @media(min-width:860px){ .grid2{grid-template-columns: 1fr 1fr;} }
+
+    label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px}
+    input, select, textarea{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(31,41,55,.7);
+      color: var(--text);
+      outline:none;
+      font-size: 14px;
+    }
+    textarea{min-height:90px; resize:vertical}
+    .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
+    button{
+      border:1px solid var(--line);
+      background: rgba(31,41,55,.9);
+      color: var(--text);
+      padding: 11px 12px;
+      border-radius: 14px;
+      font-size: 14px;
+      cursor:pointer;
+    }
+    button:hover{border-color: rgba(14,165,233,.35)}
+    .danger{border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.14)}
+    .ok{border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.12)}
+    .primary{border-color: rgba(14,165,233,.45); background: rgba(14,165,233,.14)}
+
+    .stats{
+      display:grid; gap:8px;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+    @media(min-width:860px){ .stats{grid-template-columns: repeat(4, minmax(0,1fr));} }
+    .stat{
+      border:1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(31,41,55,.45);
+    }
+    .stat .k{font-size:11px; color:var(--muted)}
+    .stat .v{font-size:16px; margin-top:4px; line-height:1.2}
+
+    .mutedBox{
+      border:1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(31,41,55,.45);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .bar{
+      height:14px;
+      border-radius:999px;
+      overflow:hidden;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+    }
+    .seg{height:100%; float:left}
+    .legend{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; color:var(--muted); font-size:12px}
+    .dot{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:6px; border:1px solid var(--line)}
+
+    .sectionTitle{
+      margin: 14px 0 8px;
+      font-size: 13px;
+      color: var(--text);
+      letter-spacing:.02em;
+    }
+    .small{font-size:11px; color:var(--muted)}
+    a.link{color:#7dd3fc; text-decoration:none; border-bottom:1px dashed rgba(125,211,252,.45)}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>自由時間カウンター（人生）</h1>
+    <p class="sub">
+      前提固定：仕事 1日8時間×週5 / 睡眠 1日8時間（毎日）/ 休み 週2日。<br>
+      生年月日を入れると、残り人生で「自由に使える時間」が日・時間で出ます。
+    </p>
+
+    <div class="grid2">
+      <!-- inputs -->
+      <div class="card">
+        <div class="grid2" style="grid-template-columns:1fr 1fr; gap:10px">
+          <div>
+            <label>生年月日</label>
+            <input id="birth" type="date" />
+          </div>
+          <div>
+            <label>何歳までで計算する？（例：80）</label>
+            <select id="targetAge">
+              <option value="70">70歳</option>
+              <option value="75">75歳</option>
+              <option value="80" selected>80歳</option>
+              <option value="85">85歳</option>
+              <option value="90">90歳</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <label>仕事は何歳まで？（デフォ65）</label>
+          <select id="retireAge">
+            <option value="60">60歳</option>
+            <option value="65" selected>65歳</option>
+            <option value="70">70歳</option>
+            <option value="75">75歳</option>
+            <option value="80">80歳</option>
+          </select>
+          <div class="small" style="margin-top:6px">
+            ※「仕事の計算」はここまで。以降は自由時間扱いになる。
+          </div>
+        </div>
+
+        <div class="sectionTitle">前提（固定）</div>
+        <div class="mutedBox">
+          ・仕事：1日8時間 × 週5日（週40時間）<br>
+          ・睡眠：1日8時間（毎日）<br>
+          ・休み：週2日（=仕事週5日と同じ意味）
+        </div>
+
+        <div class="row">
+          <button class="primary" id="calcBtn">計算する</button>
+          <button class="ok" id="copyBtn">結果をコピー</button>
+          <button class="danger" id="resetBtn">リセット</button>
+        </div>
+
+        <div class="small" style="margin-top:10px">
+          ※このアプリは端末内に保存されます（外に送信しません）
+        </div>
+      </div>
+
+      <!-- outputs -->
+      <div class="card">
+        <div class="stats" id="stats"></div>
+
+        <div class="sectionTitle">残り時間の内訳</div>
+        <div class="bar" id="bar"></div>
+        <div class="legend">
+          <span><i class="dot" style="background:rgba(34,197,94,.55)"></i>自由時間</span>
+          <span><i class="dot" style="background:rgba(14,165,233,.55)"></i>仕事</span>
+          <span><i class="dot" style="background:rgba(148,163,184,.55)"></i>睡眠</span>
+        </div>
+
+        <div class="sectionTitle">あなたはどう使う？</div>
+        <div class="mutedBox" id="questionBox"></div>
+
+        <div style="margin-top:10px">
+          <label>あなたの答え（メモ）</label>
+          <textarea id="answer" placeholder="例：平日1時間は副業、休日は子ども優先。筋トレは週3回。など"></textarea>
+        </div>
+
+        <div class="row">
+          <button class="ok" id="saveBtn">保存</button>
+          <button id="copyPlanBtn">答え込みでコピー</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const KEY = "free_time_life_v1";
+
+  // fixed assumptions
+  const WORK_HOURS_PER_DAY = 8;
+  const WORK_DAYS_PER_WEEK = 5;
+  const SLEEP_HOURS_PER_DAY = 8;
+
+  const birthEl = document.getElementById("birth");
+  const targetAgeEl = document.getElementById("targetAge");
+  const retireAgeEl = document.getElementById("retireAge");
+  const statsEl = document.getElementById("stats");
+  const barEl = document.getElementById("bar");
+  const questionBoxEl = document.getElementById("questionBox");
+  const answerEl = document.getElementById("answer");
+
+  const calcBtn = document.getElementById("calcBtn");
+  const copyBtn = document.getElementById("copyBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const copyPlanBtn = document.getElementById("copyPlanBtn");
+
+  let state = load() || {
+    birth: "",
+    targetAge: 80,
+    retireAge: 65,
+    answer: ""
+  };
+
+  // init UI
+  birthEl.value = state.birth || "";
+  targetAgeEl.value = String(state.targetAge || 80);
+  retireAgeEl.value = String(state.retireAge || 65);
+  answerEl.value = state.answer || "";
+
+  calcBtn.addEventListener("click", () => { syncState(); save(); render(); });
+  saveBtn.addEventListener("click", () => { syncState(); save(); alert("保存したよ"); });
+
+  copyBtn.addEventListener("click", async () => {
+    const t = makeCopyText(false);
+    try{ await navigator.clipboard.writeText(t); alert("コピーしたよ！"); }
+    catch(e){ alert("コピーできなかった…"); }
+  });
+
+  copyPlanBtn.addEventListener("click", async () => {
+    const t = makeCopyText(true);
+    try{ await navigator.clipboard.writeText(t); alert("答え込みでコピーしたよ！"); }
+    catch(e){ alert("コピーできなかった…"); }
+  });
+
+  resetBtn.addEventListener("click", () => {
+    if(!confirm("入力とメモをリセットする？")) return;
+    state = { birth:"", targetAge:80, retireAge:65, answer:"" };
+    save();
+    birthEl.value = ""; targetAgeEl.value = "80"; retireAgeEl.value = "65"; answerEl.value = "";
+    render();
+  });
+
+  function syncState(){
+    state.birth = birthEl.value;
+    state.targetAge = Number(targetAgeEl.value);
+    state.retireAge = Number(retireAgeEl.value);
+    state.answer = answerEl.value;
+  }
+
+  function render(){
+    const birth = parseDate(state.birth);
+    statsEl.innerHTML = "";
+    barEl.innerHTML = "";
+    questionBoxEl.textContent = "";
+
+    if(!birth){
+      addStat("自由時間", "—");
+      addStat("残り日数", "—");
+      addStat("仕事時間", "—");
+      addStat("睡眠時間", "—");
+      questionBoxEl.textContent = "生年月日を入れて「計算する」を押してね。";
+      return;
+    }
+
+    const now = new Date();
+    const targetAge = state.targetAge || 80;
+    const retireAge = state.retireAge || 65;
+
+    const end = addYears(birth, targetAge);
+    if(end <= now){
+      addStat("自由時間", "0日 0時間");
+      addStat("残り日数", "0日");
+      addStat("仕事時間", "0時間");
+      addStat("睡眠時間", "0時間");
+      questionBoxEl.textContent = "計算期間が過去になってるみたい。年齢設定を見直してね。";
+      return;
+    }
+
+    // total remaining
+    const totalHours = diffHours(now, end);
+    const totalDays = totalHours / 24;
+
+    // sleep (every day)
+    const sleepHours = totalDays * SLEEP_HOURS_PER_DAY;
+
+    // work (until retireAge, capped by end)
+    const retireDate = addYears(birth, retireAge);
+    const workEnd = (retireDate < end) ? retireDate : end;
+    const workHours = workEnd > now
+      ? diffWeeks(now, workEnd) * WORK_DAYS_PER_WEEK * WORK_HOURS_PER_DAY
+      : 0;
+
+    // free
+    const freeHours = Math.max(0, totalHours - sleepHours - workHours);
+
+    // nice formats
+    const freeDH = toDaysHours(freeHours);
+    const totalRemainingDH = toDaysHours(totalHours);
+
+    addStat("自由時間", `${freeDH.days}日 ${freeDH.hours}時間`);
+    addStat("残り総時間", `${totalRemainingDH.days}日 ${totalRemainingDH.hours}時間`);
+    addStat("仕事時間", `${Math.floor(workHours)}時間`);
+    addStat("睡眠時間", `${Math.floor(sleepHours)}時間`);
+
+    // bar segments (%)
+    const pSleep = (sleepHours / totalHours) * 100;
+    const pWork  = (workHours  / totalHours) * 100;
+    const pFree  = Math.max(0, 100 - pSleep - pWork);
+
+    barEl.appendChild(seg(pFree,  "rgba(34,197,94,.55)"));   // free
+    barEl.appendChild(seg(pWork,  "rgba(14,165,233,.55)"));  // work
+    barEl.appendChild(seg(pSleep, "rgba(148,163,184,.55)")); // sleep
+
+    // question
+    const weeklyFree = calcWeeklyFree();
+    questionBoxEl.innerHTML =
+      `残りの自由時間は <b>${freeDH.days}日 ${freeDH.hours}時間</b>。<br>
+       週あたりに直すと、自由時間は約 <b>${weeklyFree}時間/週</b>。<br><br>
+       <b>それをあなたはどう使う？</b><br>
+       （例）家族 / 健康 / 副業 / 学び —— どれにどれだけ振る？`;
+
+    // auto save
+    save();
+  }
+
+  function calcWeeklyFree(){
+    // fixed: 168h/week - sleep(56h) - work(40h) = 72h/week
+    // (休み週2日はこの中に含まれてる)
+    return 168 - (SLEEP_HOURS_PER_DAY * 7) - (WORK_HOURS_PER_DAY * WORK_DAYS_PER_WEEK);
+  }
+
+  function seg(percent, color){
+    const d = document.createElement("div");
+    d.className = "seg";
+    d.style.width = `${Math.max(0, percent)}%`;
+    d.style.background = color;
+    return d;
+  }
+
+  function addStat(k,v){
+    const d = document.createElement("div");
+    d.className = "stat";
+    d.innerHTML = `<div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>`;
+    statsEl.appendChild(d);
+  }
+
+  function makeCopyText(includePlan){
+    const birth = parseDate(state.birth);
+    if(!birth) return "自由時間カウンター：生年月日を入れて計算してね。";
+
+    const now = new Date();
+    const end = addYears(birth, state.targetAge || 80);
+    const totalHours = diffHours(now, end);
+    const totalDays = totalHours / 24;
+    const sleepHours = totalDays * SLEEP_HOURS_PER_DAY;
+
+    const retireDate = addYears(birth, state.retireAge || 65);
+    const workEnd = (retireDate < end) ? retireDate : end;
+    const workHours = workEnd > now
+      ? diffWeeks(now, workEnd) * WORK_DAYS_PER_WEEK * WORK_HOURS_PER_DAY
+      : 0;
+
+    const freeHours = Math.max(0, totalHours - sleepHours - workHours);
+    const freeDH = toDaysHours(freeHours);
+
+    const lines = [];
+    lines.push("【自由時間カウンター（人生）】");
+    lines.push(`前提：仕事8h×週5 / 睡眠8h×毎日 / 休み週2`);
+    lines.push(`自由時間：${freeDH.days}日 ${freeDH.hours}時間`);
+    lines.push(`（自由時間は約72時間/週）`);
+    lines.push("あなたはどう使う？");
+
+    if(includePlan){
+      const a = (state.answer || "").trim();
+      lines.push(a ? a : "（まだ未入力）");
+    }
+
+    return lines.join("\n");
+  }
+
+  // date utils (timezone-safe enough for this use)
+  function parseDate(s){
+    if(!s) return null;
+    const d = new Date(s + "T00:00:00");
+    if(Number.isNaN(d.getTime())) return null;
+    return d;
+  }
+  function addYears(date, years){
+    const d = new Date(date);
+    d.setFullYear(d.getFullYear() + years);
+    return d;
+  }
+  function diffHours(a,b){
+    return (b.getTime() - a.getTime()) / (1000*60*60);
+  }
+  function diffWeeks(a,b){
+    return (b.getTime() - a.getTime()) / (1000*60*60*24*7);
+  }
+  function toDaysHours(hours){
+    const h = Math.floor(hours);
+    const days = Math.floor(h / 24);
+    const remH = h % 24;
+    return { days, hours: remH };
+  }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
+  }
+
+  function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+  function load(){
+    try{ const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; }
+    catch(e){ return null; }
+  }
+
+  // SW
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+  }
+
+  // initial render
+  render();
+</script>
+</body>
+</html>
